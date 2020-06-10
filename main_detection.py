@@ -1,7 +1,7 @@
 import os
 import math
 import numpy as np
-import matplotlib as plt
+import matplotlib.pyplot as plt
 import argparse
 
 qamcoord = [0, 1, 3, 2, 6, 7, 5, 4,
@@ -20,25 +20,25 @@ def qammod(b, mod):
         print('Currently supporting only QPSK, 16QAM, 64QAM, 256QAM, 1024QAM')
         return -1
     else:
-        dims = np.power(2,mod/2) # one side of the square
+        dims = np.power(2,mod//2) # one side of the square
         coord = qamcoord[0:dims]
         xdim = 0
         ydim = 0
-        for i in range(0, mod/2):
+        for i in range(0, mod//2):
             xdim = xdim+b[i]*np.power(2,i)
-            ydim = ydim+b[i+mod/2]*np.power(2,i)
+            ydim = ydim+b[i+mod//2]*np.power(2,i)
         return np.complex(dims-(2*xdim+1), dims-(2*ydim+1))
 
 def normFactor(mod):
     if mod not in [2, 4, 6, 8, 10]:
         print('Currently supporting only QPSK, 16QAM, 64QAM, 256QAM, 1024QAM')
         return -1
-    dims = np.power(2,mod/2)
+    dims = np.power(2,mod//2)
     ene_sum = 0
-    for i in range(0,dims/2):
-        for j in range(0, dims/2):
+    for i in range(0,dims//2):
+        for j in range(0, dims//2):
             ene_sum = ene_sum+np.power(2*i+1,2)+np.power(2*j+1,2)
-    ene_sum = ene_sum/(np.power(dims,2)/4)
+    ene_sum = ene_sum/(np.power(dims,2)//4)
     return ene_sum
 
 
@@ -53,7 +53,24 @@ def generateIQ(N, mod):
         b = np.random.randint(2, size=mod)
         # encode bits into samples
         c[i] = qammod(b, mod)
+    # Normalize the signal to unit power
     c = c/np.sqrt(normFactor(mod))
+    return c
+
+def awgnChannel(x,N0):
+    # x should be avg unit power
+    # - Thermal noise = -174dBm/Hz
+    # - Variance N0/2 per real symbol
+    Nr = np.random.normal(0, N0/2, x.size)
+    Ni = np.random.normal(0, N0/2, x.size)
+    return (x+Nr+1j*Ni)
+
+def plotConstell(y):
+    yr = [a.real for a in y]
+    yi = [a.imag for a in y]
+    plt.scatter(yr, yi)
+    plt.show()
+
 
 def main():
     parser = argparse.ArgumentParser()
@@ -61,11 +78,20 @@ def main():
                     type=int)
     parser.add_argument("mod", help="Number of bits per sample.",
                     type=int, choices=[2,4,6,8,10], metavar='Mod')
+    parser.add_argument("--snr", help="Signal to noise ratio (dB).",
+                    type=float, nargs='?',default = 10, metavar='SNR')
     args = parser.parse_args()
     N = args.N
     mod = args.mod
+    snr = args.snr
+    N0 = 1/np.power(10,snr/10)
     # generate the base-band IQ signal
-    generateIQ(N, mod)
+    x = generateIQ(N, mod)
+    plotConstell(x)
+    print(np.mean(abs(x)**2))
+    y = awgnChannel(x,N0)
+    plotConstell(y)
+    print(np.mean(abs(y)**2))
 
 if __name__ == "__main__":
     main()
