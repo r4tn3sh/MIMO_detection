@@ -57,6 +57,18 @@ def generateIQ(N, mod):
     c = c/np.sqrt(normFactor(mod))
     return c
 
+def mlDetectionIQ(y, mod):
+    # y = complex signal
+    # mod = modulation scheme, BPSK, QPSK, ..., 1024QAM
+    #   BPSK=1, QPSK=2, ... 1024QAM=10
+    dims = np.power(2,mod//2) # one side of the square
+    constellind = [2*x-dims+1 for x in range(dims)]/np.sqrt(normFactor(mod))
+    constellarr = [np.complex(constellind[i], constellind[j]) for i in range(dims) for j in range(dims)]
+
+    # ML detection
+    z = [constellarr[np.argmin(np.abs(constellarr - y[i]))] for i in range(len(y))]
+    return z
+
 def awgnChannel(x,N0):
     # x should be avg unit power
     # - Thermal noise = -174dBm/Hz
@@ -85,13 +97,20 @@ def main():
     mod = args.mod
     snr = args.snr
     N0 = 1/np.power(10,snr/10)
-    # generate the base-band IQ signal
+
+    # generate the baseband IQ signal
     x = generateIQ(N, mod)
-    plotConstell(x)
-    print(np.mean(abs(x)**2))
+    #plotConstell(x)
+
+    # Sending the signal through baseband channel.
+    # The signal x should have unit power.
     y = awgnChannel(x,N0)
-    plotConstell(y)
-    print(np.mean(abs(y)**2))
+    #plotConstell(y)
+
+    z = mlDetectionIQ(y, mod)
+    #plotConstell(z)
+    print(sum((x-z)>10e-6))
+    print('SER = '+str(sum((x-z)>10e-6)/N))
 
 if __name__ == "__main__":
     main()
