@@ -65,22 +65,48 @@ def mlDetectionIQ(y, mod):
     constellind = [2*x-dims+1 for x in range(dims)]/np.sqrt(normFactor(mod))
     constellarr = [np.complex(constellind[i], constellind[j]) for i in range(dims) for j in range(dims)]
 
-    # ML detection
-    z = [constellarr[np.argmin(np.abs(constellarr - y[i]))] for i in range(len(y))]
-    return z
+    # Maximum Likerlihood detection
+    #z = [constellarr[np.argmin(np.abs(constellarr - y[i]))] for i in range(len(y))]
+    z = [constellarr[np.argmin(np.abs(constellarr - x))] for x in np.nditer(y)]
+    return np.asmatrix(z).reshape(y.shape)
 
+# ---------- CHANNEL ------------
 def awgnChannel(x,N0):
     # x should be avg unit power
     # - Thermal noise = -174dBm/Hz
     # - Variance N0/2 per real symbol
-    Nr = np.random.normal(0, N0/2, x.size)
-    Ni = np.random.normal(0, N0/2, x.size)
-    return (x+Nr+1j*Ni)
+    N0_r = np.random.normal(0, N0/2, x.shape)
+    N0_i = np.random.normal(0, N0/2, x.shape)
+    return (x+N0_r+1j*N0_i)
 
+NO_CHANNEL = 0
+RAND_UNIT_CHANNEL = 1
+def generateChMatrix(Nr,Nt,chtype):
+    # TODO: support different channel models in future.
+    if chtype == NO_CHANNEL:
+        if Nr==Nt:
+            H_r = np.identity(Nr)
+            H_i = np.zeros((Nr,Nt))
+        else:
+            raise ValueError('For channel type-'+str(chtype)+', Nr=Nt is needed.')
+            return -1
+    elif chtype == RAND_UNIT_CHANNEL:
+        # Using complex gaussian random variable
+        # Real and Img part: mean = 1, variance = 1
+        H_r = np.random.normal(1, 1, size=(Nr,Nt))
+        H_i = np.random.normal(1, 1, size=(Nr,Nt))
+    else:
+        raise ValueError('Channel type-'+str(chtype)+' is not supported.')
+        return -1
+
+    return np.asmatrix((H_r + 1j*H_i))
+
+
+# ---------- PLOTS ------------
 def plotConstell(y):
     yr = [a.real for a in y]
     yi = [a.imag for a in y]
-    plt.scatter(yr, yi)
+    plt.scatter(yr, yi,s=3)
     plt.show()
 
 
@@ -92,25 +118,40 @@ def main():
                     type=int, choices=[2,4,6,8,10], metavar='Mod')
     parser.add_argument("--snr", help="Signal to noise ratio (dB).",
                     type=float, nargs='?',default = 10, metavar='SNR')
+    parser.add_argument("--Nr", help="Number of RX antennas.",
+                    type=int, nargs='?',default = 1, metavar='Nr')
+    parser.add_argument("--Nt", help="Number of TX antennas.",
+                    type=int, nargs='?',default = 1, metavar='Nt')
     args = parser.parse_args()
     N = args.N
     mod = args.mod
     snr = args.snr
+    Nr = args.Nr
+    Nt = args.Nt
     N0 = 1/np.power(10,snr/10)
+
+    NoS = min(Nr, Nt) # maximum number of possible streams
+    H = generateChMatrix(Nr,Nt,NO_CHANNEL)
 
     # generate the baseband IQ signal
     x = generateIQ(N, mod)
-    #plotConstell(x)
+
+    # Starting with diversity gain
+    # Replicate same signal on all transmit antennas
+    Xin = np.asmatrix([x]*Nt)
+    #plotConstell(Xin)
 
     # Sending the signal through baseband channel.
     # The signal x should have unit power.
-    y = awgnChannel(x,N0)
-    #plotConstell(y)
+    y = awgnChannel(Xin,N0)
+    plotConstell(y)
 
     z = mlDetectionIQ(y, mod)
     #plotConstell(z)
-    print(sum((x-z)>10e-6))
-    print('SER = '+str(sum((x-z)>10e-6)/N))
+
+    nofsamp_err = ((Xin-z)>10e-6).sum(dtype='float')
+    print(nofsamp_err)
+    print('SER = '+str(nofsamp_err/N))
 
 if __name__ == "__main__":
     main()
