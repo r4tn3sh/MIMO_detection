@@ -9,6 +9,9 @@ qamcoord = [0, 1, 3, 2, 6, 7, 5, 4,
         24, 25, 27, 26, 30, 31, 29, 28,
         20, 21, 23, 22, 18, 19, 17, 16] #for max 10 bits
 
+# --------Basics---------
+def isSquare (m): return all (len (row) == len (m) for row in m)
+
 # This function takes specific set of bits and maps them
 # into a desired QAM modulation.
 def qammod(b, mod):
@@ -92,24 +95,36 @@ def generateChMatrix(Nr,Nt,chtype):
             return -1
     elif chtype == RAND_UNIT_CHANNEL:
         # Using complex gaussian random variable
-        # Real and Img part: mean = 1, variance = 1
-        H_r = np.random.normal(1, 1, size=(Nr,Nt))
-        H_i = np.random.normal(1, 1, size=(Nr,Nt))
+        # Real and Img part: mean = 0, variance = 1
+        H_r = np.random.normal(0, 1, size=(Nr,Nt))
+        H_i = np.random.normal(0, 1, size=(Nr,Nt))
     else:
         raise ValueError('Channel type-'+str(chtype)+' is not supported.')
         return -1
 
     return np.asmatrix((H_r + 1j*H_i))
 
+def getZfEqualizer(H):
+    if isSquare(H):
+        Eq = np.linalg.inv(H)
+    else:
+        Eq = np.linalg.pinv(H)
+    return Eq
+
+def getEqualizer(H):
+    Eq = getZfEqualizer(H)
+    return Eq
 
 # ---------- PLOTS ------------
 def plotConstell(y):
     yr = [a.real for a in y]
     yi = [a.imag for a in y]
     plt.scatter(yr, yi,s=3)
+    plt.title('Constellation plot')
     plt.show()
 
 
+# ---------- MAIN ------------
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("N", help="Number of complex samples.",
@@ -131,7 +146,8 @@ def main():
     N0 = 1/np.power(10,snr/10)
 
     NoS = min(Nr, Nt) # maximum number of possible streams
-    H = generateChMatrix(Nr,Nt,NO_CHANNEL)
+    H = generateChMatrix(Nr,Nt,RAND_UNIT_CHANNEL)
+    print('Condition number of the generated channel: '+str(np.linalg.cond(H)))
 
     # generate the baseband IQ signal
     x = generateIQ(N, mod)
@@ -141,15 +157,23 @@ def main():
     Xin = np.asmatrix([x]*Nt)
     #plotConstell(Xin)
 
-    # Sending the signal through baseband channel.
-    # The signal x should have unit power.
-    y = awgnChannel(Xin,N0)
-    plotConstell(y)
+    # Pass through the channel
+    Xout = H*Xin
 
-    z = mlDetectionIQ(y, mod)
+    # Adding white gaussian noise
+    # The signal should have unit power.
+    Y = awgnChannel(Xout,N0)
+    #plotConstell(Y)
+
+    Eq = getEqualizer(H)
+    print(Eq)
+    Yhat = Eq*Y
+    #plotConstell(Yhat)
+
+    Z = mlDetectionIQ(Yhat, mod)
     #plotConstell(z)
 
-    nofsamp_err = ((Xin-z)>10e-6).sum(dtype='float')
+    nofsamp_err = ((Xin-Z)>10e-6).sum(dtype='float')
     print(nofsamp_err)
     print('SER = '+str(nofsamp_err/N))
 
