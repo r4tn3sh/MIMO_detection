@@ -13,3 +13,4 @@ Currently used Python libraries:
 * Numpy
 * Matplotlib
 * Argparse
+* Enum

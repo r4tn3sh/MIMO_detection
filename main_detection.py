@@ -4,13 +4,17 @@ import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 
+from scipy import linalg
+from enum import Enum
+from channels import *
+from equalizers import *
+from mimoclasses import Equalizer
+from mimobasicfunc import *
+
 qamcoord = [0, 1, 3, 2, 6, 7, 5, 4,
         12, 13, 15, 14, 10, 11, 9, 8,
         24, 25, 27, 26, 30, 31, 29, 28,
         20, 21, 23, 22, 18, 19, 17, 16] #for max 10 bits
-
-# --------Basics---------
-def isSquare (m): return all (len (row) == len (m) for row in m)
 
 # This function takes specific set of bits and maps them
 # into a desired QAM modulation.
@@ -73,47 +77,6 @@ def mlDetectionIQ(y, mod):
     z = [constellarr[np.argmin(np.abs(constellarr - x))] for x in np.nditer(y)]
     return np.asmatrix(z).reshape(y.shape)
 
-# ---------- CHANNEL ------------
-def awgnChannel(x,N0):
-    # x should be avg unit power
-    # - Thermal noise = -174dBm/Hz
-    # - Variance N0/2 per real symbol
-    N0_r = np.random.normal(0, N0/2, x.shape)
-    N0_i = np.random.normal(0, N0/2, x.shape)
-    return (x+N0_r+1j*N0_i)
-
-NO_CHANNEL = 0
-RAND_UNIT_CHANNEL = 1
-def generateChMatrix(Nr,Nt,chtype):
-    # TODO: support different channel models in future.
-    if chtype == NO_CHANNEL:
-        if Nr==Nt:
-            H_r = np.identity(Nr)
-            H_i = np.zeros((Nr,Nt))
-        else:
-            raise ValueError('For channel type-'+str(chtype)+', Nr=Nt is needed.')
-            return -1
-    elif chtype == RAND_UNIT_CHANNEL:
-        # Using complex gaussian random variable
-        # Real and Img part: mean = 0, variance = 1
-        H_r = np.random.normal(0, 1, size=(Nr,Nt))
-        H_i = np.random.normal(0, 1, size=(Nr,Nt))
-    else:
-        raise ValueError('Channel type-'+str(chtype)+' is not supported.')
-        return -1
-
-    return np.asmatrix((H_r + 1j*H_i))
-
-def getZfEqualizer(H):
-    if isSquare(H):
-        Eq = np.linalg.inv(H)
-    else:
-        Eq = np.linalg.pinv(H)
-    return Eq
-
-def getEqualizer(H):
-    Eq = getZfEqualizer(H)
-    return Eq
 
 # ---------- PLOTS ------------
 def plotConstell(y):
@@ -151,29 +114,37 @@ def main():
 
     # generate the baseband IQ signal
     x = generateIQ(N, mod)
+    plotConstell(x)
 
     # Starting with diversity gain
-    # Replicate same signal on all transmit antennas
+    # NOTE: Replicate same signal on all transmit antennas
     Xin = np.asmatrix([x]*Nt)
+    Cx = np.var(x)*np.identity(Nt) #all antennas receiving same data
     #plotConstell(Xin)
 
     # Pass through the channel
     Xout = H*Xin
 
     # Adding white gaussian noise
-    # The signal should have unit power.
+    # The signal should have unit power. (?)
     Y = awgnChannel(Xout,N0)
-    #plotConstell(Y)
+    plotConstell(Y)
 
-    Eq = getEqualizer(H)
+    # Covariance matrix of noise. Currently assuming uncorrelated across antennas.
+    Cz = np.identity(Nr)
+
+    Eq = getEqualizer(H, Cx, Cz, Equalizer.ZF)
     print(Eq)
-    Yhat = Eq*Y
-    #plotConstell(Yhat)
+    t_Yhat = Eq*Y
 
-    Z = mlDetectionIQ(Yhat, mod)
+    # NOTE: Following is done assuming all Nt antennas had the same data
+    Yhat = np.mean(t_Yhat,0)
+    plotConstell(Yhat)
+
+    Xrec = mlDetectionIQ(Yhat, mod)
     #plotConstell(z)
 
-    nofsamp_err = ((Xin-Z)>10e-6).sum(dtype='float')
+    nofsamp_err = ((Xin-Xrec)>10e-6).sum(dtype='float')
     print(nofsamp_err)
     print('SER = '+str(nofsamp_err/N))
 
