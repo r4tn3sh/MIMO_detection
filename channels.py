@@ -13,7 +13,9 @@ def awgnChannel(x,N0):
     N0_i = np.random.normal(0, N0/2, x.shape)
     return (x+N0_r+1j*N0_i)
 
+# Current threshold for good/bad condition number
 cond_num_thr = 5
+
 def generateChMatrix(Nr,Nt,chtype):
     # TODO: support different channel models in future.
     if chtype == Channel.NONE:

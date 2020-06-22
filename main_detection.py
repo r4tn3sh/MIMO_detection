@@ -50,17 +50,28 @@ def normFactor(mod):
     return ene_sum
 
 
-def generateIQ(N, mod):
+def generateIQ(Nt, N, mod, tx_mode):
+    # Nt = no. of antennas
     # N = number of samples
     # mod = modulation scheme, BPSK, QPSK, ..., 1024QAM
     #   BPSK=1, QPSK=2, ... 1024QAM=10
-    bitN = N * mod
-    c = [np.complex(0,0)]*N
-    for i in range(N):
-        # get random bits
-        b = np.random.randint(2, size=mod)
-        # encode bits into samples
-        c[i] = qammod(b, mod)
+    # TODO: improve the time-consuming loop
+    c = np.asmatrix([[np.complex(0,0)]*N]*Nt)
+    if tx_mode == 0: #sending same data in all antennas
+        for j in range(N):
+            # get random bits
+            b = np.random.randint(2, size=mod)
+            # encode bits into samples
+            temp_c = qammod(b, mod)
+            for i in range(Nt):
+                c[i,j] = temp_c
+    elif tx_mode == 1: #sending different data in each antenna
+        for i in range(Nt):
+            for j in range(N):
+                # get random bits
+                b = np.random.randint(2, size=mod)
+                # encode bits into samples
+                c[i,j] = qammod(b, mod)
     # Normalize the signal to unit power
     c = c/np.sqrt(normFactor(mod))
     return c
@@ -101,12 +112,15 @@ def main():
                     type=int, nargs='?',default = 1, metavar='Nr')
     parser.add_argument("--Nt", help="Number of TX antennas.",
                     type=int, nargs='?',default = 1, metavar='Nt')
+    parser.add_argument("--txmode", help="Transmission moTX mode. Use multiple antennas for channel diversity or multiple streams.",
+                    type=int, nargs='?', choices=[0,1], default = 0, metavar='TX mode')
     args = parser.parse_args()
     N = args.N
     mod = args.mod
     snr = args.snr
     Nr = args.Nr
     Nt = args.Nt
+    tx_mode = args.txmode
     N0 = 1/np.power(10,snr/10)
 
     if Nt != Nr:
@@ -117,17 +131,18 @@ def main():
     print('Condition number of the generated channel: '+str(np.linalg.cond(H)))
 
     # generate the baseband IQ signal
-    x = generateIQ(N, mod)
-    plotConstell(x)
+    x = generateIQ(Nt, N, mod, tx_mode)
+    #plotConstell(x)
 
     # Starting with diversity gain
     # NOTE: Replicate same signal on all transmit antennas
-    Xin = np.asmatrix([x]*Nt)
+    Xin = x#np.asmatrix([x]*Nt)
     Cx = np.var(x)*np.identity(Nt) #all antennas receiving same data
-    #plotConstell(Xin)
+    plotConstell(Xin)
 
     # Pass through the channel
     Xout = H*Xin
+    print(Xout.shape)
 
     # Adding white gaussian noise
     # The signal should have unit power. (?)
@@ -150,7 +165,7 @@ def main():
     nofsamp_err = ((x-Xrec)>10e-6).sum(dtype='float')
     nofsamp_err = ((x-Xrec)>0).sum(dtype='float')
     print(nofsamp_err)
-    print('SER = '+str(nofsamp_err/N))
+    print('SER = '+str(nofsamp_err/N/Nt))
 
 if __name__ == "__main__":
     main()
