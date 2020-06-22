@@ -9,6 +9,7 @@ from enum import Enum
 from channels import *
 from equalizers import *
 from mimoclasses import Equalizer
+from mimoclasses import Channel
 from mimobasicfunc import *
 
 qamcoord = [0, 1, 3, 2, 6, 7, 5, 4,
@@ -108,8 +109,11 @@ def main():
     Nt = args.Nt
     N0 = 1/np.power(10,snr/10)
 
+    if Nt != Nr:
+        raise ValueError('Currently only Nr=Nt supported.')
+
     NoS = min(Nr, Nt) # maximum number of possible streams
-    H = generateChMatrix(Nr,Nt,RAND_UNIT_CHANNEL)
+    H = generateChMatrix(Nr,Nt,Channel.RAND_UNIT_GOOD)
     print('Condition number of the generated channel: '+str(np.linalg.cond(H)))
 
     # generate the baseband IQ signal
@@ -134,7 +138,6 @@ def main():
     Cz = np.identity(Nr)
 
     Eq = getEqualizer(H, Cx, Cz, Equalizer.ZF)
-    print(Eq)
     t_Yhat = Eq*Y
 
     # NOTE: Following is done assuming all Nt antennas had the same data
@@ -142,9 +145,10 @@ def main():
     plotConstell(Yhat)
 
     Xrec = mlDetectionIQ(Yhat, mod)
-    #plotConstell(z)
+    #plotConstell(Xrec)
 
-    nofsamp_err = ((Xin-Xrec)>10e-6).sum(dtype='float')
+    nofsamp_err = ((x-Xrec)>10e-6).sum(dtype='float')
+    nofsamp_err = ((x-Xrec)>0).sum(dtype='float')
     print(nofsamp_err)
     print('SER = '+str(nofsamp_err/N))
 
