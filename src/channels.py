@@ -13,10 +13,17 @@ def awgnChannel(x,N0):
     N0_i = np.random.normal(0, N0/2, x.shape)
     return (x+N0_r+1j*N0_i)
 
-# Current threshold for good/bad condition number
-cond_num_thr = 5
 
 def generateChMatrix(Nr,Nt,chtype):
+    # Current threshold for good/bad condition number
+    cond_num_thr = 5
+
+    # Condition number based channel will not make sense for Nr=Nt=1
+    # since the condition number is always 1
+    if Nr==1 and Nt==1:
+        if chtype > Channel.RAND_UNIT:
+            chtype = Channel.RAND_UNIT
+
     # TODO: support different channel models in future.
     if chtype == Channel.NONE:
         if Nr==Nt:
@@ -50,5 +57,6 @@ def generateChMatrix(Nr,Nt,chtype):
         raise ValueError('Channel type-'+str(chtype)+' is not supported.')
         return -1
 
+    cond_num = np.linalg.cond(np.asmatrix((H_r + 1j*H_i)))
+    print('Condition number of the generated channel: '+str(cond_num))
     return np.asmatrix((H_r + 1j*H_i))
-
