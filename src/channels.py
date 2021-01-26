@@ -6,9 +6,15 @@ from mimoclasses import Channel
 
 # ---------- CHANNEL ------------
 def awgnChannel(x,N0):
-    # x should be avg unit power
-    # - Thermal noise = -174dBm/Hz
-    # - Variance N0/2 per real symbol
+    """
+    Generates the AWGN channel
+    Input parameters
+    - Signal x (should be avg unit power)
+    - Noise variance N0
+    Other parameters
+    - Thermal noise = -174dBm/Hz
+    - Variance N0/2 per real symbol
+    """
     N0_r = np.random.normal(0, N0/2, x.shape)
     N0_i = np.random.normal(0, N0/2, x.shape)
     return (x+N0_r+1j*N0_i)

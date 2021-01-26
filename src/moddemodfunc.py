@@ -5,9 +5,11 @@ qamcoord = [0, 1, 3, 2, 6, 7, 5, 4,
         24, 25, 27, 26, 30, 31, 29, 28,
         20, 21, 23, 22, 18, 19, 17, 16] #for max 10 bits
 
-# This function takes specific set of bits and maps them
-# into a desired QAM modulation.
 def qammod(b, mod):
+    """
+    This function takes specific set of bits and maps them into a desired QAM 
+    modulation.
+    """
     global qamcoord
     if b.size != mod:
         print('number of bits do not match the modulation scheme')

@@ -14,6 +14,7 @@ from plotfunc import *
 from moddemodfunc import *
 from siggenfunc import *
 from detectfunc import *
+from measurefunc import *
 
 
 # ---------- MAIN ------------
@@ -48,13 +49,13 @@ def main():
     print('Condition number of the generated channel: '+str(np.linalg.cond(H)))
 
     # generate the baseband IQ signal
-    x = generateIQ(Nt, N, mod, tx_mode)
+    X = generateIQ(Nt, N, mod, tx_mode)
     #plotConstell(x)
 
     # Starting with diversity gain
     # NOTE: Replicate same signal on all transmit antennas
-    Xin = x#np.asmatrix([x]*Nt)
-    Cx = np.var(x)*np.identity(Nt) #all antennas receiving same data
+    Xin = X#np.asmatrix([x]*Nt)
+    Cx = np.var(X)*np.identity(Nt) #all antennas receiving same data
     pltx = plotConstell(Xin)
     plt.title('Transmit signal constellation')
 
@@ -83,8 +84,7 @@ def main():
     Xrec = mlDetectionIQ(Yhat, mod)
     #plotConstell(Xrec)
 
-    nofsamp_err = ((x-Xrec)>10e-6).sum(dtype='float')
-    nofsamp_err = ((x-Xrec)>0).sum(dtype='float')
+    nofsamp_err = getSER(X,Xrec)
     print('SER = '+str(nofsamp_err/N/Nt))
     plt.show()
 
