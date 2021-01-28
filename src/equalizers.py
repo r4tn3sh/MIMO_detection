@@ -9,6 +9,7 @@ from mimobasicfunc import *
 def getZfEqualizer(H):
     """
     Generates the zero forcing equalizer for a given channel matrix H.
+    Estimate from this equalization is also called "Babai estimate".
     """
     if isSquare(H):
         Eq = linalg.inv(H)
@@ -26,6 +27,9 @@ def getMmseEqualizer(H, Cx, Cz):
     Hh = H.conj().T
     tM = Hh*(linalg.inv(Cz)*H) + linalg.inv(Cx)
     return linalg.inv(tM)*Hh
+
+def decisionFeedbackEqualizer(H):
+    return 0
 
 def getEqualizer(H, Cx, Cz, t):
     """

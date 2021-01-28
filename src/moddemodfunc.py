@@ -1,16 +1,13 @@
 import numpy as np
 
-qamcoord = [0, 1, 3, 2, 6, 7, 5, 4,
-        12, 13, 15, 14, 10, 11, 9, 8,
-        24, 25, 27, 26, 30, 31, 29, 28,
-        20, 21, 23, 22, 18, 19, 17, 16] #for max 10 bits
 
 def qammod(b, mod):
     """
-    This function takes specific set of bits and maps them into a desired QAM 
+    This function takes specific set of bits and maps them into a desired QAM
     modulation.
+    Real part : +-1 +-3 +-5 .......
+    Imag part : +-1 +-3 +-5 .......
     """
-    global qamcoord
     if b.size != mod:
         print('number of bits do not match the modulation scheme')
         return -1
@@ -19,7 +16,7 @@ def qammod(b, mod):
         return -1
     else:
         dims = np.power(2,mod//2) # one side of the square
-        coord = qamcoord[0:dims]
+        #coord = qamcoord[0:dims]
         xdim = 0
         ydim = 0
         for i in range(0, mod//2):

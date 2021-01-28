@@ -85,7 +85,9 @@ def main():
     #plotConstell(Xrec)
 
     nofsamp_err = getSER(X,Xrec)
+    evm = getEVM(X,Yhat,mod)
     print('SER = '+str(nofsamp_err/N/Nt))
+    print('EVM = '+str(evm)+' dB')
     plt.show()
 
 if __name__ == "__main__":
