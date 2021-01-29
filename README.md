@@ -8,13 +8,14 @@ The goal of this project is to create a simulation of a basic baseband communica
 * Sample detection algorithms.
 * Useful plotting capability
   * Time and frequency domain representation
-  * Constellation 
+  * Constellation
 
 ## Currently implemented
 * Channels:
     * AWGN
     * Random fading channel based on condition number
 * Equalizer: Zero-Forcing, MMSE
+* Measurement of Symbol error rate and EVM
 
 
 ## Required Python libraries:
